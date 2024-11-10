@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>隨機分組</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin-top: 20px;
+            background-size: cover;
+            background-position: center;
+        }
+
+        /* 桌面版背景圖片 */
+        @media screen and (min-width: 768px) {
+            body {
+                background-image: url('https://via.placeholder.com/1920x1080'); /* 替換為桌面版圖片 */
+            }
+        }
+
+        /* 手機版背景圖片 */
+        @media screen and (max-width: 767px) {
+            body {
+                background-image: url('https://via.placeholder.com/767x1334'); /* 替換為手機版圖片 */
+            }
+        }
+
+        .inputs-container {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin: 0 auto;
+            width: 100%;
+            max-width: 1000px;
+        }
+
+        input {
+            padding: 10px;
+            font-size: 16px;
+            box-sizing: border-box;
+            width: 100%;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 18px;
+            margin-top: 10px;
+        }
+
+        table {
+            width: 300px;
+            margin: 20px auto;
+            border-collapse: collapse;
+        }
+
+        td {
+            width: 25%;
+            padding: 15px;
+            border: 1px solid #000;
+            font-size: 18px;
+            text-align: center;
+        }
+
+        select {
+            padding: 10px;
+            font-size: 16px;
+            margin-bottom: 20px;
+        }
+
+        .pairing-container {
+            margin-top: 20px;
+        }
+
+        .pairing-container label {
+            font-size: 18px;
+            margin-right: 10px;
+        }
+
+        .pairing-selects {
+            display: inline-block;
+            margin: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>隨機分組</h1>
+
+    <!-- 選擇組數 -->
+    <label for="groupCount">選擇組數：</label>
+    <select id="groupCount" onchange="adjustGroups()">
+        <option value="1">1組</option>
+        <option value="2">2組</option>
+        <option value="3">3組</option>
+        <option value="4">4組</option>
+    </select>
+
+    <!-- 動態生成的輸入欄位 -->
+    <div id="inputs" class="inputs-container"></div>
+
+    <!-- 選擇誰和誰要一組 -->
+    <!-- <div class="pairing-container" id="pairingContainer" style="display:none;">
+        <h2>選擇誰和誰要一組</h2>
+        <div class="pairing-selects">
+            <label for="pair1">組員1：</label>
+            <select id="pair1"></select>
+            <label for="pair2">組員2：</label>
+            <select id="pair2"></select>
+        </div>
+        <button onclick="addPair()">添加到同組</button>
+    </div> -->
+
+    <!-- 顯示隨機閃爍名字的表格 -->
+    <table id="nameTable"></table>
+
+    <button onclick="startRandomGrouping()">開始分組</button>
+
+    <script>
+        let isRunning = false;
+        let interval;
+        let stopTimeout;
+        let pairs = []; // 存放指定同組的組員對
+
+        // 動態生成輸入欄位與表格
+        function adjustGroups() {
+            const groupCount = parseInt(document.getElementById('groupCount').value);
+            const totalNames = groupCount * 4;
+            const inputsContainer = document.getElementById('inputs');
+            const nameTable = document.getElementById('nameTable');
+            //const pairingContainer = document.getElementById('pairingContainer');
+            //const pair1Select = document.getElementById('pair1');
+            //const pair2Select = document.getElementById('pair2');
+            
+            // 清空現有的輸入欄位與表格
+            inputsContainer.innerHTML = '';
+            nameTable.innerHTML = '';
+            //pair1Select.innerHTML = '';
+            //pair2Select.innerHTML = '';
+            pairs = []; // 清空已有的配對
+
+            // 動態生成輸入欄位
+            for (let i = 1; i <= totalNames; i++) {
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.id = 'name' + i;
+                input.placeholder = '名字' + i;
+                inputsContainer.appendChild(input);
+            }
+
+            // 動態生成表格
+            for (let row = 0; row < groupCount; row++) {
+                const tr = document.createElement('tr');
+                for (let col = 0; col < 4; col++) {
+                    const td = document.createElement('td');
+                    td.id = 'cell' + (row * 4 + col + 1);
+                    tr.appendChild(td);
+                }
+                nameTable.appendChild(tr);
+            }
+
+            // 顯示同組配對的選項
+            //pairingContainer.style.display = 'block';
+
+            // 動態生成配對選項
+            for (let i = 1; i <= totalNames; i++) {
+                const option1 = document.createElement('option');
+                const option2 = document.createElement('option');
+                option1.value = option2.value = i;
+                option1.textContent = option2.textContent = '名字' + i;
+                //pair1Select.appendChild(option1);
+                //pair2Select.appendChild(option2);
+            }
+        }
+
+        // 初始化頁面時生成1組4個人的輸入欄位和表格
+        adjustGroups();
+
+        // 添加指定配對到列表
+        function addPair() {
+            const pair1 = document.getElementById('pair1').value;
+            const pair2 = document.getElementById('pair2').value;
+
+            if (pair1 !== pair2 && !pairs.find(pair => pair.includes(pair1) || pair.includes(pair2))) {
+                pairs.push([pair1, pair2]);
+                alert(`已將名字${pair1}和名字${pair2}設定為同一組`);
+            } else {
+                alert('組員不能重複或選同一個人');
+            }
+        }
+
+        // 隨機分組邏輯
+        function startRandomGrouping() {
+            if (isRunning) return; // 防止重複開始
+            isRunning = true;
+
+            const groupCount = parseInt(document.getElementById('groupCount').value);
+            const totalNames = groupCount * 4;
+            
+            // 獲取輸入的名字
+            const names = [];
+            for (let i = 1; i <= totalNames; i++) {
+                const name = document.getElementById('name' + i).value.trim();
+                names.push(name || `空位${i}`);
+            }
+
+            // 將配對的人保留在同一組
+            pairs.forEach(pair => {
+                const [index1, index2] = pair.map(index => index - 1);
+                if (index1 < names.length && index2 < names.length) {
+                    const pairNames = [names[index1], names[index2]];
+                    names.splice(index1, 1);
+                    names.splice(index2 - 1, 1); // 第二個要減一，因為前面已經刪除了一個
+                    names.unshift(...pairNames); // 確保這兩個人在同一組
+                }
+            });
+
+            // 隨機閃爍表格的名字
+            const cells = [];
+            for (let i = 1; i <= totalNames; i++) {
+                cells.push(document.getElementById('cell' + i));
+            }
+
+            // 開始快速閃爍
+            let speed = 100; // 初始速度
+            interval = setInterval(() => {
+                const shuffledNames = names.sort(() => Math.random() - 0.5);
+                cells.forEach((cell, index) => {
+                    cell.textContent = shuffledNames[index];
+                });
+            }, speed);
+
+            // 5秒後慢慢停下
+            stopTimeout = setTimeout(() => {
+                clearInterval(interval); // 停止快速閃爍
+                slowDown(names, cells);
+            }, 5000);
+        }
+
+        function slowDown(names, cells) {
+            let speed = 100;
+            const slowdownInterval = setInterval(() => {
+                speed += 100; // 逐漸增加時間間隔，減慢閃爍速度
+                if (speed >= 1000) {
+                    clearInterval(slowdownInterval);
+                    finalizeGrouping(names, cells);
+                } else {
+                    clearInterval(interval);
+                    interval = setInterval(() => {
+                        const shuffledNames = names.sort(() => Math.random() - 0.5);
+                        cells.forEach((cell, index) => {
+                            cell.textContent = shuffledNames[index];
+                        });
+                    }, speed);
+                }
+            }, 500);
+        }
+
+        function finalizeGrouping(names, cells) {
+            clearInterval(interval); // 完全停止閃爍
+            const shuffledNames = names.sort(() => Math.random() - 0.5);
+            cells.forEach((cell, index) => {
+                cell.textContent = shuffledNames[index];
+            });
+            isRunning = false; // 重置狀態，允許再次啟動
+        }
+    </script>
+</body>
+</html>
